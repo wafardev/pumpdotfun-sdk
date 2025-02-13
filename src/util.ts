@@ -39,7 +39,6 @@ export async function sendTx(
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
 ): Promise<TransactionResult> {
-  console.log("here5");
   let newTx = new Transaction();
 
   if (priorityFees) {
@@ -54,8 +53,6 @@ export async function sendTx(
     newTx.add(addPriorityFee);
   }
 
-  console.log("here6");
-
   newTx.add(tx);
 
   let versionedTx = await buildVersionedTx(
@@ -66,10 +63,7 @@ export async function sendTx(
   );
   versionedTx.sign(signers);
 
-  console.log("here7");
-
   try {
-    console.log("here8");
     const sig = await connection.sendTransaction(versionedTx, {
       skipPreflight: false,
     });
