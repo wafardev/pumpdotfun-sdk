@@ -80,10 +80,7 @@ export class PumpFunSDK {
   ): Promise<TransactionResult> {
     const program = this.initProgram(connection);
 
-    console.log("here");
     let tokenMetadata = await this.createTokenMetadata(createTokenMetadata);
-
-    console.log("here2");
 
     let createTx = await this.getCreateInstructions(
       program,
@@ -93,8 +90,6 @@ export class PumpFunSDK {
       tokenMetadata.metadataUri,
       mint
     );
-
-    console.log("here3");
 
     let newTx = new Transaction().add(createTx);
 
@@ -120,8 +115,6 @@ export class PumpFunSDK {
 
       newTx.add(buyTx);
     }
-
-    console.log("here4");
 
     let createResults = await sendTx(
       program.provider.connection,
