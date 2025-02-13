@@ -68,7 +68,7 @@ export class PumpFunSDK {
   }
 
   async createAndBuy(
-    program: Program<PumpFun>,
+    connection: Connection,
     creator: Keypair,
     mint: Keypair,
     createTokenMetadata: CreateTokenMetadata,
@@ -78,6 +78,7 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
+    const program = this.initProgram(connection);
     let tokenMetadata = await this.createTokenMetadata(createTokenMetadata);
 
     let createTx = await this.getCreateInstructions(
@@ -127,7 +128,7 @@ export class PumpFunSDK {
   }
 
   async buy(
-    program: Program<PumpFun>,
+    connection: Connection,
     buyer: Keypair,
     mint: PublicKey,
     buyAmountSol: bigint,
@@ -136,6 +137,7 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
+    const program = this.initProgram(connection);
     let buyTx = await this.getBuyInstructionsBySolAmount(
       program,
       buyer.publicKey,
@@ -158,7 +160,7 @@ export class PumpFunSDK {
   }
 
   async sell(
-    program: Program<PumpFun>,
+    connection: Connection,
     seller: Keypair,
     mint: PublicKey,
     sellTokenAmount: bigint,
@@ -167,6 +169,7 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
+    const program = this.initProgram(connection);
     let sellTx = await this.getSellInstructionsByTokenAmount(
       program,
       seller.publicKey,
@@ -235,7 +238,7 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT
   ) {
     let bondingCurveAccount = await this.getBondingCurveAccount(
-      program,
+      program.provider.connection,
       mint,
       commitment
     );
@@ -323,7 +326,7 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT
   ) {
     let bondingCurveAccount = await this.getBondingCurveAccount(
-      program,
+      program.provider.connection,
       mint,
       commitment
     );
@@ -391,10 +394,11 @@ export class PumpFunSDK {
   }
 
   async getBondingCurveAccount(
-    program: Program<PumpFun>,
+    connection: Connection,
     mint: PublicKey,
     commitment: Commitment = DEFAULT_COMMITMENT
   ) {
+    const program = this.initProgram(connection);
     const tokenAccount = await program.provider.connection.getAccountInfo(
       this.getBondingCurvePDA(program, mint),
       commitment
