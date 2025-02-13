@@ -6,7 +6,7 @@ import {
   PublicKey,
   Transaction,
 } from "@solana/web3.js";
-import { Program, Provider } from "@coral-xyz/anchor";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import { GlobalAccount } from "./globalAccount";
 import {
   CompleteEvent,
@@ -52,19 +52,23 @@ export const METADATA_SEED = "metadata";
 export const DEFAULT_DECIMALS = 6;
 
 export class PumpFunSDK {
-  initialize(provider: Provider): {
-    program: Program<PumpFun>;
-    connection: Connection;
-  } {
+  initProgram(connection: Connection): Program<PumpFun> {
+    const provider = new AnchorProvider(
+      connection,
+      {
+        publicKey: Keypair.generate().publicKey,
+        signTransaction: async (tx) => tx,
+        signAllTransactions: async (txs) => txs,
+      },
+      { commitment: "confirmed" }
+    );
     const program = new Program<PumpFun>(IDL as PumpFun, provider);
-    const connection = program.provider.connection;
 
-    return { program, connection };
+    return program;
   }
 
   async createAndBuy(
     program: Program<PumpFun>,
-    connection: Connection,
     creator: Keypair,
     mint: Keypair,
     createTokenMetadata: CreateTokenMetadata,
@@ -88,7 +92,10 @@ export class PumpFunSDK {
     let newTx = new Transaction().add(createTx);
 
     if (buyAmountSol > 0) {
-      const globalAccount = await this.getGlobalAccount(connection, commitment);
+      const globalAccount = await this.getGlobalAccount(
+        program.provider.connection,
+        commitment
+      );
       const buyAmount = globalAccount.getInitialBuyPrice(buyAmountSol);
       const buyAmountWithSlippage = calculateWithSlippageBuy(
         buyAmountSol,
@@ -97,7 +104,6 @@ export class PumpFunSDK {
 
       const buyTx = await this.getBuyInstructions(
         program,
-        connection,
         creator.publicKey,
         mint.publicKey,
         globalAccount.feeRecipient,
@@ -109,7 +115,7 @@ export class PumpFunSDK {
     }
 
     let createResults = await sendTx(
-      connection,
+      program.provider.connection,
       newTx,
       creator.publicKey,
       [creator, mint],
@@ -122,7 +128,6 @@ export class PumpFunSDK {
 
   async buy(
     program: Program<PumpFun>,
-    connection: Connection,
     buyer: Keypair,
     mint: PublicKey,
     buyAmountSol: bigint,
@@ -133,7 +138,6 @@ export class PumpFunSDK {
   ): Promise<TransactionResult> {
     let buyTx = await this.getBuyInstructionsBySolAmount(
       program,
-      connection,
       buyer.publicKey,
       mint,
       buyAmountSol,
@@ -142,7 +146,7 @@ export class PumpFunSDK {
     );
 
     let buyResults = await sendTx(
-      connection,
+      program.provider.connection,
       buyTx,
       buyer.publicKey,
       [buyer],
@@ -155,7 +159,6 @@ export class PumpFunSDK {
 
   async sell(
     program: Program<PumpFun>,
-    connection: Connection,
     seller: Keypair,
     mint: PublicKey,
     sellTokenAmount: bigint,
@@ -166,7 +169,6 @@ export class PumpFunSDK {
   ): Promise<TransactionResult> {
     let sellTx = await this.getSellInstructionsByTokenAmount(
       program,
-      connection,
       seller.publicKey,
       mint,
       sellTokenAmount,
@@ -175,7 +177,7 @@ export class PumpFunSDK {
     );
 
     let sellResults = await sendTx(
-      connection,
+      program.provider.connection,
       sellTx,
       seller.publicKey,
       [seller],
@@ -226,7 +228,6 @@ export class PumpFunSDK {
 
   async getBuyInstructionsBySolAmount(
     program: Program<PumpFun>,
-    connection: Connection,
     buyer: PublicKey,
     mint: PublicKey,
     buyAmountSol: bigint,
@@ -235,7 +236,6 @@ export class PumpFunSDK {
   ) {
     let bondingCurveAccount = await this.getBondingCurveAccount(
       program,
-      connection,
       mint,
       commitment
     );
@@ -249,11 +249,13 @@ export class PumpFunSDK {
       slippageBasisPoints
     );
 
-    let globalAccount = await this.getGlobalAccount(connection, commitment);
+    let globalAccount = await this.getGlobalAccount(
+      program.provider.connection,
+      commitment
+    );
 
     return await this.getBuyInstructions(
       program,
-      connection,
       buyer,
       mint,
       globalAccount.feeRecipient,
@@ -265,7 +267,6 @@ export class PumpFunSDK {
   //buy
   async getBuyInstructions(
     program: Program<PumpFun>,
-    connection: Connection,
     buyer: PublicKey,
     mint: PublicKey,
     feeRecipient: PublicKey,
@@ -284,7 +285,7 @@ export class PumpFunSDK {
     let transaction = new Transaction();
 
     try {
-      await getAccount(connection, associatedUser, commitment);
+      await getAccount(program.provider.connection, associatedUser, commitment);
     } catch (e) {
       transaction.add(
         createAssociatedTokenAccountInstruction(
@@ -315,7 +316,6 @@ export class PumpFunSDK {
   //sell
   async getSellInstructionsByTokenAmount(
     program: Program<PumpFun>,
-    connection: Connection,
     seller: PublicKey,
     mint: PublicKey,
     sellTokenAmount: bigint,
@@ -324,7 +324,6 @@ export class PumpFunSDK {
   ) {
     let bondingCurveAccount = await this.getBondingCurveAccount(
       program,
-      connection,
       mint,
       commitment
     );
@@ -332,7 +331,10 @@ export class PumpFunSDK {
       throw new Error(`Bonding curve account not found: ${mint.toBase58()}`);
     }
 
-    let globalAccount = await this.getGlobalAccount(connection, commitment);
+    let globalAccount = await this.getGlobalAccount(
+      program.provider.connection,
+      commitment
+    );
 
     let minSolOutput = bondingCurveAccount.getSellPrice(
       sellTokenAmount,
@@ -390,11 +392,10 @@ export class PumpFunSDK {
 
   async getBondingCurveAccount(
     program: Program<PumpFun>,
-    connection: Connection,
     mint: PublicKey,
     commitment: Commitment = DEFAULT_COMMITMENT
   ) {
-    const tokenAccount = await connection.getAccountInfo(
+    const tokenAccount = await program.provider.connection.getAccountInfo(
       this.getBondingCurvePDA(program, mint),
       commitment
     );
