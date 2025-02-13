@@ -39,6 +39,7 @@ export async function sendTx(
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY
 ): Promise<TransactionResult> {
+  console.log("here5");
   let newTx = new Transaction();
 
   if (priorityFees) {
@@ -53,12 +54,22 @@ export async function sendTx(
     newTx.add(addPriorityFee);
   }
 
+  console.log("here6");
+
   newTx.add(tx);
 
-  let versionedTx = await buildVersionedTx(connection, payer, newTx, commitment);
+  let versionedTx = await buildVersionedTx(
+    connection,
+    payer,
+    newTx,
+    commitment
+  );
   versionedTx.sign(signers);
 
+  console.log("here7");
+
   try {
+    console.log("here8");
     const sig = await connection.sendTransaction(versionedTx, {
       skipPreflight: false,
     });
@@ -79,7 +90,7 @@ export async function sendTx(
   } catch (e) {
     if (e instanceof SendTransactionError) {
       let ste = e as SendTransactionError;
-      console.log("SendTransactionError" + await ste.getLogs(connection));
+      console.log("SendTransactionError" + (await ste.getLogs(connection)));
     } else {
       console.error(e);
     }
@@ -96,8 +107,7 @@ export const buildVersionedTx = async (
   tx: Transaction,
   commitment: Commitment = DEFAULT_COMMITMENT
 ): Promise<VersionedTransaction> => {
-  const blockHash = (await connection.getLatestBlockhash(commitment))
-    .blockhash;
+  const blockHash = (await connection.getLatestBlockhash(commitment)).blockhash;
 
   let messageV0 = new TransactionMessage({
     payerKey: payer,
