@@ -39,7 +39,7 @@ export async function sendTx(
   commitment: Commitment = DEFAULT_COMMITMENT,
   finality: Finality = DEFAULT_FINALITY,
   waitForConfirmation = true
-): Promise<TransactionResult | undefined> {
+): Promise<TransactionResult> {
   let newTx = new Transaction();
 
   if (priorityFees) {
@@ -82,6 +82,11 @@ export async function sendTx(
         success: true,
         signature: sig,
         results: txResult,
+      };
+    } else {
+      return {
+        success: true,
+        signature: sig,
       };
     }
   } catch (e) {
