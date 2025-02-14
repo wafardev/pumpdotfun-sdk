@@ -37,8 +37,9 @@ export async function sendTx(
   signers: Keypair[],
   priorityFees?: PriorityFee,
   commitment: Commitment = DEFAULT_COMMITMENT,
-  finality: Finality = DEFAULT_FINALITY
-): Promise<TransactionResult> {
+  finality: Finality = DEFAULT_FINALITY,
+  waitForConfirmation = true
+): Promise<TransactionResult | undefined> {
   let newTx = new Transaction();
 
   if (priorityFees) {
@@ -69,18 +70,20 @@ export async function sendTx(
     });
     console.log("Signature:", `https://solscan.io/tx/${sig}`);
 
-    let txResult = await getTxDetails(connection, sig, commitment, finality);
-    if (!txResult) {
+    if (waitForConfirmation) {
+      let txResult = await getTxDetails(connection, sig, commitment, finality);
+      if (!txResult) {
+        return {
+          success: false,
+          error: "Transaction failed",
+        };
+      }
       return {
-        success: false,
-        error: "Transaction failed",
+        success: true,
+        signature: sig,
+        results: txResult,
       };
     }
-    return {
-      success: true,
-      signature: sig,
-      results: txResult,
-    };
   } catch (e) {
     if (e instanceof SendTransactionError) {
       let ste = e as SendTransactionError;

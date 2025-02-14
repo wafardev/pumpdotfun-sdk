@@ -74,10 +74,11 @@ export class PumpFunSDK {
     createTokenMetadata: CreateTokenMetadata,
     buyAmountSol: bigint,
     slippageBasisPoints: bigint = 500n,
+    waitForConfirmation: boolean = true,
     priorityFees?: PriorityFee,
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
-  ): Promise<TransactionResult> {
+  ): Promise<TransactionResult | undefined> {
     const program = this.initProgram(connection);
 
     let tokenMetadata = await this.createTokenMetadata(createTokenMetadata);
@@ -123,7 +124,8 @@ export class PumpFunSDK {
       [creator, mint],
       priorityFees,
       commitment,
-      finality
+      finality,
+      waitForConfirmation
     );
     return createResults;
   }
@@ -137,7 +139,7 @@ export class PumpFunSDK {
     priorityFees?: PriorityFee,
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
-  ): Promise<TransactionResult> {
+  ): Promise<TransactionResult | undefined> {
     const program = this.initProgram(connection);
     let buyTx = await this.getBuyInstructionsBySolAmount(
       program,
@@ -169,7 +171,7 @@ export class PumpFunSDK {
     priorityFees?: PriorityFee,
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
-  ): Promise<TransactionResult> {
+  ): Promise<TransactionResult | undefined> {
     const program = this.initProgram(connection);
     let sellTx = await this.getSellInstructionsByTokenAmount(
       program,
