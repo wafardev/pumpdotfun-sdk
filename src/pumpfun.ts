@@ -196,17 +196,33 @@ export class PumpFunSDK {
     buyAmountSol: bigint,
     slippageBasisPoints: bigint = 500n,
     priorityFees?: PriorityFee,
-    commitment: Commitment = DEFAULT_COMMITMENT
+    commitment: Commitment = DEFAULT_COMMITMENT,
+    buyAmountToken?: bigint
   ): Promise<VersionedTransaction> {
     const program = this.initProgram(connection);
-    let buyTx = await this.getBuyInstructionsBySolAmount(
-      program,
-      buyer.publicKey,
-      mint,
-      buyAmountSol,
-      slippageBasisPoints,
-      commitment
-    );
+
+    let buyTx: Transaction;
+
+    if (buyAmountToken) {
+      buyTx = await this.getBuyInstructionsBySolAndTokenAmount(
+        program,
+        buyer.publicKey,
+        mint,
+        buyAmountToken,
+        buyAmountSol,
+        slippageBasisPoints,
+        commitment
+      );
+    } else {
+      buyTx = await this.getBuyInstructionsBySolAmount(
+        program,
+        buyer.publicKey,
+        mint,
+        buyAmountSol,
+        slippageBasisPoints,
+        commitment
+      );
+    }
 
     let versionedTx = await getVersionedTx(
       program.provider.connection,
@@ -350,6 +366,35 @@ export class PumpFunSDK {
       mint,
       globalAccount.feeRecipient,
       buyAmount,
+      buyAmountWithSlippage
+    );
+  }
+
+  async getBuyInstructionsBySolAndTokenAmount(
+    program: Program<PumpFun>,
+    buyer: PublicKey,
+    mint: PublicKey,
+    buyAmountToken: bigint,
+    buyAmountSol: bigint,
+    slippageBasisPoints: bigint = 500n,
+    commitment: Commitment = DEFAULT_COMMITMENT
+  ) {
+    let buyAmountWithSlippage = calculateWithSlippageBuy(
+      buyAmountSol,
+      slippageBasisPoints
+    );
+
+    let globalAccount = await this.getGlobalAccount(
+      program.provider.connection,
+      commitment
+    );
+
+    return await this.getBuyInstructions(
+      program,
+      buyer,
+      mint,
+      globalAccount.feeRecipient,
+      buyAmountToken,
       buyAmountWithSlippage
     );
   }
