@@ -30,16 +30,14 @@ export const calculateWithSlippageSell = (
   return amount - (amount * basisPoints) / 10000n;
 };
 
-export async function sendTx(
+export async function getVersionedTx(
   connection: Connection,
   tx: Transaction,
   payer: PublicKey,
   signers: Keypair[],
   priorityFees?: PriorityFee,
-  commitment: Commitment = DEFAULT_COMMITMENT,
-  finality: Finality = DEFAULT_FINALITY,
-  waitForConfirmation = true
-): Promise<TransactionResult> {
+  commitment: Commitment = DEFAULT_COMMITMENT
+) {
   let newTx = new Transaction();
 
   if (priorityFees) {
@@ -64,31 +62,33 @@ export async function sendTx(
   );
   versionedTx.sign(signers);
 
+  return versionedTx;
+}
+
+export async function sendTx(
+  connection: Connection,
+  versionedTx: VersionedTransaction,
+  commitment: Commitment = DEFAULT_COMMITMENT,
+  finality: Finality = DEFAULT_FINALITY
+): Promise<TransactionResult> {
   try {
     const sig = await connection.sendTransaction(versionedTx, {
       skipPreflight: false,
     });
     console.log("Signature:", `https://solscan.io/tx/${sig}`);
 
-    if (waitForConfirmation) {
-      let txResult = await getTxDetails(connection, sig, commitment, finality);
-      if (!txResult) {
-        return {
-          success: false,
-          error: "Transaction failed",
-        };
-      }
+    let txResult = await getTxDetails(connection, sig, commitment, finality);
+    if (!txResult) {
       return {
-        success: true,
-        signature: sig,
-        results: txResult,
-      };
-    } else {
-      return {
-        success: true,
-        signature: sig,
+        success: false,
+        error: "Transaction failed",
       };
     }
+    return {
+      success: true,
+      signature: sig,
+      results: txResult,
+    };
   } catch (e) {
     if (e instanceof SendTransactionError) {
       let ste = e as SendTransactionError;

@@ -5,6 +5,7 @@ import {
   Keypair,
   PublicKey,
   Transaction,
+  VersionedTransaction,
 } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import { GlobalAccount } from "./globalAccount";
@@ -37,6 +38,7 @@ import {
   DEFAULT_FINALITY,
   calculateWithSlippageBuy,
   calculateWithSlippageSell,
+  getVersionedTx,
   sendTx,
 } from "./util";
 import { PumpFun, IDL } from "./IDL";
@@ -74,11 +76,40 @@ export class PumpFunSDK {
     createTokenMetadata: CreateTokenMetadata,
     buyAmountSol: bigint,
     slippageBasisPoints: bigint = 500n,
-    waitForConfirmation: boolean = true,
     priorityFees?: PriorityFee,
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
+    const versionedTx = await this.getCreateAndBuyTx(
+      connection,
+      creator,
+      mint,
+      createTokenMetadata,
+      buyAmountSol,
+      slippageBasisPoints,
+      priorityFees,
+      commitment
+    );
+
+    let createResults = await sendTx(
+      connection,
+      versionedTx,
+      commitment,
+      finality
+    );
+    return createResults;
+  }
+
+  async getCreateAndBuyTx(
+    connection: Connection,
+    creator: Keypair,
+    mint: Keypair,
+    createTokenMetadata: CreateTokenMetadata,
+    buyAmountSol: bigint,
+    slippageBasisPoints: bigint = 500n,
+    priorityFees?: PriorityFee,
+    commitment: Commitment = DEFAULT_COMMITMENT
+  ): Promise<VersionedTransaction> {
     const program = this.initProgram(connection);
 
     let tokenMetadata = await this.createTokenMetadata(createTokenMetadata);
@@ -117,17 +148,16 @@ export class PumpFunSDK {
       newTx.add(buyTx);
     }
 
-    let createResults = await sendTx(
+    let versionedTx = await getVersionedTx(
       program.provider.connection,
       newTx,
       creator.publicKey,
       [creator, mint],
       priorityFees,
-      commitment,
-      finality,
-      waitForConfirmation
+      commitment
     );
-    return createResults;
+
+    return versionedTx;
   }
 
   async buy(
@@ -140,6 +170,34 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
+    const versionedTx = await this.getBuyTx(
+      connection,
+      buyer,
+      mint,
+      buyAmountSol,
+      slippageBasisPoints,
+      priorityFees,
+      commitment
+    );
+
+    let buyResults = await sendTx(
+      connection,
+      versionedTx,
+      commitment,
+      finality
+    );
+    return buyResults;
+  }
+
+  async getBuyTx(
+    connection: Connection,
+    buyer: Keypair,
+    mint: PublicKey,
+    buyAmountSol: bigint,
+    slippageBasisPoints: bigint = 500n,
+    priorityFees?: PriorityFee,
+    commitment: Commitment = DEFAULT_COMMITMENT
+  ): Promise<VersionedTransaction> {
     const program = this.initProgram(connection);
     let buyTx = await this.getBuyInstructionsBySolAmount(
       program,
@@ -150,16 +208,16 @@ export class PumpFunSDK {
       commitment
     );
 
-    let buyResults = await sendTx(
+    let versionedTx = await getVersionedTx(
       program.provider.connection,
       buyTx,
       buyer.publicKey,
       [buyer],
       priorityFees,
-      commitment,
-      finality
+      commitment
     );
-    return buyResults;
+
+    return versionedTx;
   }
 
   async sell(
@@ -172,6 +230,34 @@ export class PumpFunSDK {
     commitment: Commitment = DEFAULT_COMMITMENT,
     finality: Finality = DEFAULT_FINALITY
   ): Promise<TransactionResult> {
+    const versionedTx = await this.getSellTx(
+      connection,
+      seller,
+      mint,
+      sellTokenAmount,
+      slippageBasisPoints,
+      priorityFees,
+      commitment
+    );
+
+    let sellResults = await sendTx(
+      connection,
+      versionedTx,
+      commitment,
+      finality
+    );
+    return sellResults;
+  }
+
+  async getSellTx(
+    connection: Connection,
+    seller: Keypair,
+    mint: PublicKey,
+    sellTokenAmount: bigint,
+    slippageBasisPoints: bigint = 500n,
+    priorityFees?: PriorityFee,
+    commitment: Commitment = DEFAULT_COMMITMENT
+  ): Promise<VersionedTransaction> {
     const program = this.initProgram(connection);
     let sellTx = await this.getSellInstructionsByTokenAmount(
       program,
@@ -182,18 +268,16 @@ export class PumpFunSDK {
       commitment
     );
 
-    let sellResults = await sendTx(
+    let versionedTx = await getVersionedTx(
       program.provider.connection,
       sellTx,
       seller.publicKey,
       [seller],
       priorityFees,
-      commitment,
-      finality
+      commitment
     );
-    return sellResults;
+    return versionedTx;
   }
-
   //create token instructions
   async getCreateInstructions(
     program: Program<PumpFun>,
